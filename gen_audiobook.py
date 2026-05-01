@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-Generate audiobook from parsed scripts using ElevenLabs Text to Dialogue.
+Generate audiobook from parsed scripts using multiple TTS providers.
+Supports ElevenLabs, Kokoro (Local), Piper (Local), MLX-TTS (Local), KittenTTS (Local), and OpenAI.
 
 Usage:
-  python gen_audiobook.py                # Generate all chapters
+  python gen_audiobook.py                # Generate all chapters (default: elevenlabs)
   python gen_audiobook.py 1              # Single chapter
   python gen_audiobook.py 1 5            # Range
-  python gen_audiobook.py --list-voices  # List available ElevenLabs voices
-  python gen_audiobook.py --test 1       # Generate first 30 seconds of ch 1 (test)
+  python gen_audiobook.py --list-voices  # List available voices
+  python gen_audiobook.py --test 1       # Generate first segments of ch 1 (test)
+  python gen_audiobook.py --provider mlx # Use local MLX-TTS
+  python gen_audiobook.py --provider kittentts # Use local KittenTTS
 """
 import os
 import sys
@@ -17,32 +20,277 @@ import re
 import time
 import argparse
 from pathlib import Path
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+import numpy as np
+import soundfile as sf
+from pydub import AudioSegment
+import httpx
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env", override=True)
-
-ELEVENLABS_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 
 AUDIO_DIR = BASE_DIR / "audiobook"
 SCRIPTS_DIR = AUDIO_DIR / "scripts"
 OUTPUT_DIR = AUDIO_DIR / "chapters"
 VOICES_FILE = BASE_DIR / "audiobook_voices.json"
+MODELS_DIR = BASE_DIR / "models"
 
 MAX_CHARS_PER_CALL = 4500  # stay under 5000 limit with overhead
 PAUSE_BETWEEN_CALLS = 3.0  # rate limiting — ElevenLabs has per-minute caps
 
 
-def get_client():
-    """Initialize ElevenLabs client."""
-    from elevenlabs.client import ElevenLabs
-    if not ELEVENLABS_KEY:
-        print("ERROR: ELEVENLABS_API_KEY not set in .env", file=sys.stderr)
+# --- Provider Abstraction ---
+
+class TTSProvider(ABC):
+    """Base class for Text-to-Speech providers."""
+    @abstractmethod
+    def generate(self, segments: List[Dict[str, str]]) -> bytes:
+        """Takes a list of {text, voice_id} and returns combined MP3/WAV bytes."""
+        pass
+
+    @property
+    @abstractmethod
+    def max_chars(self) -> int:
+        """Maximum characters allowed per generation call."""
+        pass
+
+
+class ElevenLabsProvider(TTSProvider):
+    """ElevenLabs TTS Provider."""
+    def __init__(self, api_key: str):
+        from elevenlabs.client import ElevenLabs
+        self.client = ElevenLabs(api_key=api_key)
+        self._max_chars = MAX_CHARS_PER_CALL
+
+    @property
+    def voices(self):
+        return self.client.voices
+
+    @property
+    def max_chars(self) -> int:
+        return self._max_chars
+
+    def generate(self, segments: List[Dict[str, str]]) -> bytes:
+        audio = self.client.text_to_dialogue.convert(inputs=segments)
+        audio_bytes = b""
+        for chunk in audio:
+            if isinstance(chunk, bytes):
+                audio_bytes += chunk
+        return audio_bytes
+
+
+class KokoroProvider(TTSProvider):
+    """Local Kokoro TTS Provider using ONNX."""
+    def __init__(self):
+        from kokoro_onnx import Kokoro
+        model_path = MODELS_DIR / "kokoro-v0_19.onnx"
+        voices_path = MODELS_DIR / "voices.bin"
+
+        if not model_path.exists() or not voices_path.exists():
+            print(f"ERROR: Kokoro models not found in {MODELS_DIR}")
+            print("Please download 'kokoro-v0_19.onnx' and 'voices.bin' to the models/ directory.")
+            sys.exit(1)
+
+        self.kokoro = Kokoro(str(model_path), str(voices_path))
+        self._max_chars = 1000000
+
+    @property
+    def max_chars(self) -> int:
+        return self._max_chars
+
+    def generate(self, segments: List[Dict[str, str]]) -> bytes:
+        combined_audio = []
+        sample_rate = 24000
+        for seg in segments:
+            samples, sr = self.kokoro.create(seg['text'], voice=seg['voice_id'], speed=1.0, lang="en-us")
+            combined_audio.append(samples)
+            sample_rate = sr
+            combined_audio.append(np.zeros(int(sr * 0.1)))
+
+        if not combined_audio:
+            return b""
+        full_audio = np.concatenate(combined_audio)
+        buffer = io.BytesIO()
+        sf.write(buffer, full_audio, sample_rate, format='WAV')
+        buffer.seek(0)
+        audio_seg = AudioSegment.from_wav(buffer)
+        mp3_buffer = io.BytesIO()
+        audio_seg.export(mp3_buffer, format="mp3", bitrate="192k")
+        return mp3_buffer.getvalue()
+
+
+class KittenTTSProvider(TTSProvider):
+    """Local KittenTTS Provider."""
+    def __init__(self):
+        from kittentts import KittenTTS
+        self.model = KittenTTS("KittenML/kitten-tts-mini-0.8")
+        self._max_chars = 1000000
+
+    @property
+    def max_chars(self) -> int:
+        return self._max_chars
+
+    def generate(self, segments: List[Dict[str, str]]) -> bytes:
+        combined_audio = []
+        sample_rate = 24000
+        for seg in segments:
+            audio = self.model.generate(seg['text'], voice=seg['voice_id'])
+            combined_audio.append(audio)
+            combined_audio.append(np.zeros(int(sample_rate * 0.1)))
+
+        if not combined_audio:
+            return b""
+        full_audio = np.concatenate(combined_audio)
+        buffer = io.BytesIO()
+        sf.write(buffer, full_audio, sample_rate, format='WAV')
+        buffer.seek(0)
+        audio_seg = AudioSegment.from_wav(buffer)
+        mp3_buffer = io.BytesIO()
+        audio_seg.export(mp3_buffer, format="mp3", bitrate="192k")
+        return mp3_buffer.getvalue()
+
+
+class PiperProvider(TTSProvider):
+    """Local Piper TTS Provider."""
+    def __init__(self):
+        from piper import PiperVoice
+        self.PiperVoice = PiperVoice
+        self._max_chars = 5000
+        self.voices_cache = {}
+
+    @property
+    def max_chars(self) -> int:
+        return self._max_chars
+
+    def _get_voice(self, voice_id: str):
+        if voice_id not in self.voices_cache:
+            model_path = MODELS_DIR / f"{voice_id}.onnx"
+            config_path = MODELS_DIR / f"{voice_id}.onnx.json"
+            if not model_path.exists():
+                voice_id = "en_US-lessac-medium"
+                model_path = MODELS_DIR / f"{voice_id}.onnx"
+                config_path = MODELS_DIR / f"{voice_id}.onnx.json"
+
+            if not model_path.exists():
+                print(f"ERROR: Piper model {voice_id} not found in {MODELS_DIR}")
+                return None
+            self.voices_cache[voice_id] = self.PiperVoice.load(str(model_path), str(config_path))
+        return self.voices_cache[voice_id]
+
+    def generate(self, segments: List[Dict[str, str]]) -> bytes:
+        combined = AudioSegment.empty()
+        for seg in segments:
+            voice = self._get_voice(seg['voice_id'])
+            if not voice:
+                continue
+
+            buffer = io.BytesIO()
+            import wave
+            with wave.open(buffer, "wb") as wav_file:
+                voice.synthesize_wav(seg['text'], wav_file)
+
+            buffer.seek(0)
+            part = AudioSegment.from_wav(buffer)
+            combined += part
+            combined += AudioSegment.silent(duration=100)
+
+        mp3_buffer = io.BytesIO()
+        combined.export(mp3_buffer, format="mp3", bitrate="192k")
+        return mp3_buffer.getvalue()
+
+
+class MLXTTSProvider(TTSProvider):
+    """Local MLX-TTS Provider for Apple Silicon."""
+    def __init__(self, base_url: str = "http://localhost:8000"):
+        self.base_url = base_url
+        self._max_chars = 10000
+
+    @property
+    def max_chars(self) -> int:
+        return self._max_chars
+
+    def generate(self, segments: List[Dict[str, str]]) -> bytes:
+        combined = AudioSegment.empty()
+        with httpx.Client(timeout=300.0) as client:
+            for seg in segments:
+                response = client.post(
+                    f"{self.base_url}/v1/audio/speech",
+                    json={
+                        "model": "mlx-community/Kokoro-82M",
+                        "input": seg['text'],
+                        "voice": seg['voice_id'],
+                        "speed": 1.0
+                    }
+                )
+                if response.status_code == 200:
+                    part = AudioSegment.from_file(io.BytesIO(response.content))
+                    combined += part
+                    combined += AudioSegment.silent(duration=100)
+
+        mp3_buffer = io.BytesIO()
+        combined.export(mp3_buffer, format="mp3", bitrate="192k")
+        return mp3_buffer.getvalue()
+
+
+class OpenAITTSProvider(TTSProvider):
+    """OpenAI Cloud TTS Provider."""
+    def __init__(self, api_key: str):
+        from openai import OpenAI
+        self.client = OpenAI(api_key=api_key)
+        self._max_chars = 4000
+
+    @property
+    def max_chars(self) -> int:
+        return self._max_chars
+
+    def generate(self, segments: List[Dict[str, str]]) -> bytes:
+        combined = AudioSegment.empty()
+        for seg in segments:
+            response = self.client.audio.speech.create(
+                model="tts-1",
+                voice=seg['voice_id'],
+                input=seg['text']
+            )
+            part = AudioSegment.from_file(io.BytesIO(response.content), format="mp3")
+            combined += part
+            combined += AudioSegment.silent(duration=200)
+        mp3_buffer = io.BytesIO()
+        combined.export(mp3_buffer, format="mp3", bitrate="192k")
+        return mp3_buffer.getvalue()
+
+
+def get_client(name: str) -> TTSProvider:
+    """Initialize selected TTS provider."""
+    name = name.lower()
+    if name == "elevenlabs":
+        key = os.environ.get("ELEVENLABS_API_KEY", "")
+        if not key:
+            print("ERROR: ELEVENLABS_API_KEY not set in .env", file=sys.stderr)
+            sys.exit(1)
+        return ElevenLabsProvider(key)
+    elif name == "kokoro":
+        return KokoroProvider()
+    elif name == "kittentts":
+        return KittenTTSProvider()
+    elif name == "piper":
+        return PiperProvider()
+    elif name == "mlx":
+        url = os.environ.get("MLX_TTS_SERVER_URL", "http://localhost:8000")
+        return MLXTTSProvider(url)
+    elif name == "openai":
+        key = os.environ.get("OPENAI_API_KEY", "")
+        if not key:
+            print("ERROR: OPENAI_API_KEY not set in .env", file=sys.stderr)
+            sys.exit(1)
+        return OpenAITTSProvider(key)
+    else:
+        print(f"ERROR: Unknown provider {name}")
         sys.exit(1)
-    return ElevenLabs(api_key=ELEVENLABS_KEY)
 
 
-def load_voices():
+def load_voices(provider_name: str):
     """Load voice mapping from audiobook_voices.json."""
     if not VOICES_FILE.exists():
         print(f"ERROR: {VOICES_FILE} not found. Create it first.", file=sys.stderr)
@@ -52,7 +300,7 @@ def load_voices():
     for name, info in data.items():
         if name.startswith("_"):
             continue
-        vid = info.get("voice_id", "")
+        vid = info.get("providers", {}).get(provider_name)
         if vid and vid != "REPLACE_WITH_VOICE_ID":
             voices[name] = vid
     return voices
@@ -69,7 +317,7 @@ def load_script(ch_num):
 
 def chunk_segments(segments, voices, max_chars=MAX_CHARS_PER_CALL):
     """Split segments into chunks that fit within the API character limit.
-    
+
     Each chunk is a list of {text, voice_id} dicts suitable for text_to_dialogue.
     We try to keep dialogue exchanges together (don't split mid-conversation).
     """
@@ -98,7 +346,7 @@ def chunk_segments(segments, voices, max_chars=MAX_CHARS_PER_CALL):
                 chunks.append(current_chunk)
                 current_chunk = []
                 current_chars = 0
-            
+
             # Split long text into sentences
             sentences = text.replace(". ", ".\n").split("\n")
             sub_chunk = []
@@ -136,28 +384,29 @@ def chunk_segments(segments, voices, max_chars=MAX_CHARS_PER_CALL):
 
 def generate_chapter(ch_num, client, voices, test_mode=False):
     """Generate audio for a single chapter."""
+    # Note: client is an instance of TTSProvider (client == provider)
     script = load_script(ch_num)
     if not script:
         return None
 
     title = script.get("title", f"Chapter {ch_num}")
     segments = script["segments"]
-    
+
     if test_mode:
         # Only use first 10 segments for testing
         segments = segments[:10]
         print(f"  TEST MODE: using first 10 segments only")
 
-    chunks = chunk_segments(segments, voices)
+    chunks = chunk_segments(segments, voices, client.max_chars)
     total_chunks = len(chunks)
-    
-    print(f"  Ch {ch_num}: '{title}' → {len(segments)} segments → {total_chunks} API calls")
+
+    print(f"  Ch {ch_num}: '{title}' → {len(segments)} segments → {total_chunks} chunks")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     audio_parts = []
 
     failed_chunks = []
-    
+
     for i, chunk in enumerate(chunks, 1):
         chars = sum(len(s['text']) for s in chunk)
         print(f"    [{i}/{total_chunks}] {chars} chars, "
@@ -168,14 +417,9 @@ def generate_chapter(ch_num, client, voices, test_mode=False):
         last_error = None
         for attempt in range(1, 4):
             try:
-                audio = client.text_to_dialogue.convert(inputs=chunk)
-                audio_bytes = b""
-                for chunk_data in audio:
-                    if isinstance(chunk_data, bytes):
-                        audio_bytes += chunk_data
-                    else:
-                        audio_bytes += chunk_data
-                break  # success
+                audio_bytes = client.generate(chunk)
+                if audio_bytes and len(audio_bytes) > 0:
+                    break  # success
             except Exception as e:
                 last_error = str(e)
                 if attempt < 3:
@@ -190,14 +434,14 @@ def generate_chapter(ch_num, client, voices, test_mode=False):
             failed_chunks.append(i)
             print(f" ✗ FAILED after 3 attempts: {last_error[:120] if last_error else 'unknown'}")
 
-        if i < total_chunks:
+        if isinstance(client, ElevenLabsProvider) and i < total_chunks:
             time.sleep(PAUSE_BETWEEN_CALLS)
 
     if failed_chunks:
         print(f"\n  ⚠ WARNING: {len(failed_chunks)} chunks FAILED: {failed_chunks}")
         print(f"  The audio file will have GAPS. Re-run to retry failed chunks.")
         print(f"  Failed chunk numbers: {failed_chunks} of {total_chunks}")
-        
+
         # Save a manifest of what succeeded and what failed
         manifest = {
             "chapter": ch_num,
@@ -215,7 +459,7 @@ def generate_chapter(ch_num, client, voices, test_mode=False):
 
     # Concatenate all audio parts
     combined = b"".join(audio_parts)
-    
+
     suffix = "_test" if test_mode else ""
     out_path = OUTPUT_DIR / f"ch_{ch_num:02d}{suffix}.mp3"
     out_path.write_bytes(combined)
@@ -226,43 +470,47 @@ def generate_chapter(ch_num, client, voices, test_mode=False):
 
 
 def list_voices(client):
-    """List available ElevenLabs voices."""
-    response = client.voices.get_all()
-    print(f"\n{'='*60}")
-    print(f"AVAILABLE VOICES ({len(response.voices)})")
-    print(f"{'='*60}")
-    for voice in response.voices:
-        labels = voice.labels or {}
-        accent = labels.get("accent", "")
-        age = labels.get("age", "")
-        gender = labels.get("gender", "")
-        desc = labels.get("description", "")
-        use_case = labels.get("use_case", "")
-        print(f"\n  {voice.name}")
-        print(f"    ID: {voice.voice_id}")
-        print(f"    {gender} | {age} | {accent}")
-        if desc:
-            print(f"    {desc}")
-        if use_case:
-            print(f"    Use case: {use_case}")
+    """List available voices."""
+    if isinstance(client, ElevenLabsProvider):
+        response = client.voices.get_all()
+        print(f"\n{'='*60}")
+        print(f"AVAILABLE VOICES ({len(response.voices)})")
+        print(f"{'='*60}")
+        for voice in response.voices:
+            labels = voice.labels or {}
+            accent = labels.get("accent", "")
+            age = labels.get("age", "")
+            gender = labels.get("gender", "")
+            desc = labels.get("description", "")
+            use_case = labels.get("use_case", "")
+            print(f"\n  {voice.name}")
+            print(f"    ID: {voice.voice_id}")
+            print(f"    {gender} | {age} | {accent}")
+            if desc:
+                print(f"    {desc}")
+            if use_case:
+                print(f"    Use case: {use_case}")
+    else:
+        print("Voice listing is only supported for the ElevenLabs provider.")
+        print("For local providers, refer to their documentation for available voice IDs.")
 
 
 def assemble_full_audiobook():
     """Concatenate all chapter audio files into one."""
     chapter_files = sorted(OUTPUT_DIR.glob("ch_*.mp3"))
     chapter_files = [f for f in chapter_files if "_test" not in f.name]
-    
+
     if not chapter_files:
         print("No chapter audio files found.")
         return
-    
+
     print(f"\nAssembling {len(chapter_files)} chapters into full audiobook...")
-    
+
     combined = b""
     # Add 2 seconds of silence between chapters (simple approach: just concatenate)
     for f in chapter_files:
         combined += f.read_bytes()
-    
+
     out = AUDIO_DIR / "full_audiobook.mp3"
     out.write_bytes(combined)
     size_mb = len(combined) / (1024 * 1024)
@@ -273,14 +521,15 @@ def main():
     parser = argparse.ArgumentParser(description="Generate audiobook from parsed scripts")
     parser.add_argument("start", nargs="?", type=int, help="Start chapter")
     parser.add_argument("end", nargs="?", type=int, help="End chapter")
+    parser.add_argument("--provider", default="elevenlabs", choices=["elevenlabs", "kokoro", "piper", "mlx", "kittentts", "openai"], help="TTS provider")
     parser.add_argument("--list-voices", action="store_true", help="List available voices")
-    parser.add_argument("--test", type=int, metavar="CH", help="Test mode: first 10 segments of chapter")
+    parser.add_argument("--test", type=int, metavar="CH", help="Test mode: first few segments of chapter")
     parser.add_argument("--assemble", action="store_true", help="Assemble full audiobook from chapters")
     parser.add_argument("--status", action="store_true", help="Show generation status for all chapters")
 
     args = parser.parse_args()
-    
-    client = get_client()
+
+    client = get_client(args.provider)
 
     if args.list_voices:
         list_voices(client)
@@ -313,17 +562,11 @@ def main():
                 print(f"  Ch {ch_num:2d}: ✗ not generated")
         return
 
-    voices = load_voices()
+    voices = load_voices(args.provider)
     if not voices:
-        print("ERROR: No voices configured. Edit audiobook_voices.json with real voice IDs.")
+        print(f"ERROR: No voices configured for provider '{args.provider}' in audiobook_voices.json")
         print("Run: python gen_audiobook.py --list-voices")
         sys.exit(1)
-
-    unconfigured = [name for name, info in json.loads(VOICES_FILE.read_text()).items()
-                    if not name.startswith("_") and info.get("voice_id") == "REPLACE_WITH_VOICE_ID"]
-    if unconfigured:
-        print(f"WARNING: {len(unconfigured)} voices unconfigured: {unconfigured[:5]}")
-        print(f"Edit audiobook_voices.json to set voice IDs.")
 
     if args.test:
         generate_chapter(args.test, client, voices, test_mode=True)
@@ -332,11 +575,11 @@ def main():
     # Determine chapter range
     scripts = sorted(SCRIPTS_DIR.glob("ch*_script.json"))
     total = len(scripts)
-    
+
     start = args.start or 1
     end = args.end or total
 
-    print(f"Generating audiobook: chapters {start}-{end}")
+    print(f"Generating audiobook using {args.provider}: chapters {start}-{end}")
     print(f"  Voices configured: {list(voices.keys())}")
     print()
 

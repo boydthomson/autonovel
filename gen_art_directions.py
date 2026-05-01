@@ -8,6 +8,7 @@ import json
 import re
 from pathlib import Path
 from dotenv import load_dotenv
+from utils import extract_text_from_response, get_max_tokens_with_thinking
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env", override=True)
@@ -18,6 +19,7 @@ ANTHROPIC_BASE = os.environ.get("AUTONOVEL_API_BASE_URL", "https://api.anthropic
 
 
 def call_claude(prompt, max_tokens=3000):
+    max_tokens = get_max_tokens_with_thinking(max_tokens)
     import httpx
     resp = httpx.post(
         f"{ANTHROPIC_BASE}/v1/messages",
@@ -35,7 +37,7 @@ def call_claude(prompt, max_tokens=3000):
         timeout=120,
     )
     resp.raise_for_status()
-    return resp.json()["content"][0]["text"]
+    return extract_text_from_response(resp.json())
 
 
 def generate_directions(art_type, style, n=6, world_excerpt=""):

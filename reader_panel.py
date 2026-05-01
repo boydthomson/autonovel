@@ -14,6 +14,8 @@ from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
 
+from utils import extract_text_from_response, get_max_tokens_with_thinking
+
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env")
 
@@ -76,10 +78,9 @@ READERS = {
     },
 }
 
-READER_PROMPT = """You have just read a complete fantasy novel in summary form.
+READER_PROMPT = """You have just read a complete novel in summary form.
 The summaries include chapter-by-chapter events, opening and closing passages
-from each chapter, and key dialogue. The full novel is 72,422 words across
-24 chapters.
+from each chapter, and key dialogue.{novel_stats_line}
 
 {arc_summary}
 
@@ -89,10 +90,10 @@ Quote passages when you can. Name chapter numbers.
 Respond with JSON:
 {{
   "momentum_loss": "Where does the story lose momentum? Name the specific chapter(s) and what causes the drag. If it never loses momentum, say so and explain why.",
-  
-  "earned_ending": "Does the ending feel earned by everything before it? Does Cass's choice in Ch 22 land? Does the final image in Ch 24 mirror Ch 1 in a way that satisfies? What, if anything, feels unearned?",
-  
-  "cut_candidate": "If the novel had to be 10% shorter (~7,000 words), which chapter or section would you cut first? Why? What would be lost?",
+
+  "earned_ending": "Does the ending feel earned by everything before it? Do the key character choices in the final chapters land? Does the closing image mirror earlier moments in a satisfying way? What, if anything, feels unearned?",
+
+  "cut_candidate": "If the novel had to be 10% shorter{cut_word_hint}, which chapter or section would you cut first? Why? What would be lost?",
   
   "missing_scene": "Is there a scene the novel NEEDS that it doesn't have? A conversation that should happen, a moment that's earned but never delivered, a character who deserves more page time? Be specific about where it would go.",
   
@@ -110,6 +111,41 @@ Respond with JSON:
 }}
 """
 
+def _load_novel_stats():
+    """Load word count and chapter count dynamically from project state."""
+    chapter_files = sorted((BASE_DIR / "chapters").glob("*.md"))
+    word_count = sum(len(f.read_text().split()) for f in chapter_files)
+    chapter_count = len(chapter_files)
+
+    if not chapter_count:
+        state_path = BASE_DIR / "state.json"
+        if state_path.exists():
+            state = json.loads(state_path.read_text())
+            chapter_count = state.get("chapters_total") or state.get("chapters_drafted") or 0
+
+    return word_count, chapter_count
+
+
+def _build_prompt(arc_summary):
+    word_count, chapter_count = _load_novel_stats()
+
+    if word_count and chapter_count:
+        novel_stats_line = f" The full novel is {word_count:,} words across {chapter_count} chapters."
+        cut_word_hint = f" (~{word_count // 10:,} words)"
+    elif chapter_count:
+        novel_stats_line = f" The full novel is {chapter_count} chapters."
+        cut_word_hint = ""
+    else:
+        novel_stats_line = ""
+        cut_word_hint = ""
+
+    return READER_PROMPT.format(
+        arc_summary=arc_summary,
+        novel_stats_line=novel_stats_line,
+        cut_word_hint=cut_word_hint,
+    )
+
+
 def call_reader(reader_key, arc_summary):
     import httpx
     reader = READERS[reader_key]
@@ -120,14 +156,14 @@ def call_reader(reader_key, arc_summary):
     }
     payload = {
         "model": JUDGE_MODEL,
-        "max_tokens": 4000,
+        "max_tokens": get_max_tokens_with_thinking(4000),
         "temperature": 0.7,  # Higher temp for personality
         "system": reader["system"],
-        "messages": [{"role": "user", "content": READER_PROMPT.format(arc_summary=arc_summary)}],
+        "messages": [{"role": "user", "content": _build_prompt(arc_summary)}],
     }
     resp = httpx.post(f"{API_BASE}/v1/messages", headers=headers, json=payload, timeout=300)
     resp.raise_for_status()
-    raw = resp.json()["content"][0]["text"]
+    raw = extract_text_from_response(resp.json())
     
     # Parse JSON
     raw = raw.strip()

@@ -27,6 +27,7 @@ BASE_DIR = Path(__file__).parent
 
 # Load .env file if present
 from dotenv import load_dotenv
+from utils import extract_text_from_response, get_max_tokens_with_thinking
 load_dotenv(BASE_DIR / ".env")
 
 # Judge uses Opus 4.6 (harsh, critical). Writer uses Sonnet 4.6 (fast, long context).
@@ -274,6 +275,7 @@ def load_all_chapters():
 
 def call_judge(prompt, max_tokens=2000):
     """Call the Anthropic judge LLM and return its response text."""
+    max_tokens = get_max_tokens_with_thinking(max_tokens)
     import httpx
 
     headers = {
@@ -301,7 +303,7 @@ def call_judge(prompt, max_tokens=2000):
         timeout=180,
     )
     resp.raise_for_status()
-    return resp.json()["content"][0]["text"]
+    return extract_text_from_response(resp.json())
 
 
 def parse_json_response(text):

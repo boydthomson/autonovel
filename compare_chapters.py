@@ -15,6 +15,7 @@ import random
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
+from utils import extract_text_from_response, get_max_tokens_with_thinking
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env")
@@ -25,6 +26,7 @@ API_BASE = os.environ.get("AUTONOVEL_API_BASE_URL", "https://api.anthropic.com")
 CHAPTERS_DIR = BASE_DIR / "chapters"
 
 def call_judge(prompt, max_tokens=4000):
+    max_tokens = get_max_tokens_with_thinking(max_tokens)
     import httpx
     headers = {
         "x-api-key": API_KEY,
@@ -45,7 +47,7 @@ def call_judge(prompt, max_tokens=4000):
     }
     resp = httpx.post(f"{API_BASE}/v1/messages", headers=headers, json=payload, timeout=300)
     resp.raise_for_status()
-    return resp.json()["content"][0]["text"]
+    return extract_text_from_response(resp.json())
 
 def parse_json(text):
     text = text.strip()

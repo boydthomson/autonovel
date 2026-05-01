@@ -18,6 +18,7 @@ import json
 import re
 from pathlib import Path
 from dotenv import load_dotenv
+from utils import extract_text_from_response, get_max_tokens_with_thinking
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env", override=True)
@@ -66,6 +67,7 @@ Rules:
 
 
 def call_claude(prompt, max_tokens=8000):
+    max_tokens = get_max_tokens_with_thinking(max_tokens)
     import httpx
     resp = httpx.post(
         f"{API_BASE}/v1/messages",
@@ -84,7 +86,7 @@ def call_claude(prompt, max_tokens=8000):
         timeout=300,
     )
     resp.raise_for_status()
-    return resp.json()["content"][0]["text"]
+    return extract_text_from_response(resp.json())
 
 
 def parse_chapter(ch_num):

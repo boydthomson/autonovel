@@ -163,6 +163,53 @@ This is the single most overused rhetorical pattern in LLM output. It appears in
 
 LLMs overuse em dashes (--) where humans would use commas, parentheses, or just write two sentences. One or two em dashes per page is fine. Five per paragraph is a tell. [Source](https://arxiv.org/html/2509.19163v1)
 
+### Paired em-dash parentheticals
+
+A specific, more damaging variant of em dash overload. The pattern:
+a long sentence containing `— parenthetical clause —` used as
+inline parentheses inside run-on prose. Example:
+
+**Slop:** "The body — and he'd been warned, by the doctor and by
+the literature on the subject, that there would be complications —
+would undergo a period of adjustment."
+
+**Human:** Uses actual parentheses, or splits into sentences, or
+restructures: "He'd been warned there would be complications. The
+body would undergo a period of adjustment."
+
+One or two per piece for genuine emphasis is fine. The AI default
+is dozens. Budget: ~3 em dashes per 1000 words total, with paired
+parenthetical uses accounting for no more than a quarter of those.
+
+### The "which was" recontextualization machine
+
+AI prose compulsively reframes after a comma. The pattern: state a
+fact, comma, then "which was [a reinterpretation of what the fact
+means]." Individual instances are legitimate relative clauses. The
+density is the tell.
+
+**Slop:** "He ate the eggs, which were overcooked, which was a
+metaphor for something, which was the kind of thought he would
+normally write in his journal, which was no longer private."
+
+**Detection:** Count "which was" and "which is" per 1000 words.
+Over 2.5 per 1000 = rewrite the weakest instances as separate
+sentences, colons, or simply cut the recontextualization.
+
+### Deflationary sentence endings
+
+A sentence or paragraph builds toward something, then the final
+clause undercuts it with a wry observation. Examples:
+
+- "...which was refreshing."
+- "...which was, come to think of it, the point."
+- "...which said something about him he preferred not to examine."
+
+A few per piece is a voice feature (especially in first-person or
+close-third ironic narrators). The AI default is one per paragraph.
+If you can remove the final clause and the sentence is stronger
+without it, the deflation was a reflex, not a choice.
+
 ### Sycophantic openings
 
 Watch for responses that start by praising the question or rephrasing it:

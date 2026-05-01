@@ -2,9 +2,11 @@
 """Build LaTeX source from chapter files."""
 import re
 import os
+from pathlib import Path
 
-CHAPTERS_DIR = "/home/jeffq/autonovel/chapters"
-OUT_DIR = "/home/jeffq/autonovel/typeset"
+BASE_DIR = Path(__file__).parent.parent
+CHAPTERS_DIR = str(BASE_DIR / "chapters")
+OUT_DIR = str(BASE_DIR / "typeset")
 
 def latex_escape(t):
     t = t.replace('&', '\\&')

@@ -168,6 +168,55 @@ Eight measurable dimensions per character:
 Test: Remove all dialogue tags. Can you still tell who is speaking?
 If yes, dialogue is distinct. If no, characters need differentiation.
 
+### Dialogue Balance and Rhythm
+
+AI dialogue defaults to perfectly balanced exchanges: each line
+roughly the same length, alternating with metronomic regularity,
+every riposte matching the previous line's register and wit.
+Real conversation is lumpy. One person talks more than the other.
+Someone interrupts. Someone says too much. Someone says nothing.
+A line falls flat and there's a silence.
+
+Checks:
+  - Line length variation: do some lines have 3 words and some
+    have 30? Or is everything 8-15?
+  - Asymmetry: does one person dominate? Or do they trade equal
+    turns like a tennis rally?
+  - Dead air: is there at least one moment where nobody says
+    anything and the silence is not described or analyzed?
+  - Imperfection: does at least one character say something
+    clumsy, wrong, or badly phrased in every dialogue scene?
+
+### Supporting Character Opacity Test
+
+The wound/want/need/lie framework and three sliders are designed for
+protagonists. Supporting characters need a different audit. Without
+explicit checking, every non-POV character becomes a calibration
+instrument for the protagonist -- they exist only to illuminate
+someone else's arc.
+
+For each non-POV character with more than two scenes, verify:
+
+1. **Independent desire**: Do they want something that doesn't serve
+   the protagonist's arc? Not a subplot that echoes the theme -- a
+   desire the story's thesis can't absorb.
+
+2. **Counter-narrative action**: Do they act against the protagonist's
+   narrative at least once? Not as an antagonist but as a person with
+   their own logic that conflicts with the protagonist's framing.
+
+3. **Wrongness or selfishness**: Are they ever wrong, selfish, or
+   confused in a way that doesn't advance the plot? A moment that
+   exists because people are complicated, not because the story
+   needs it.
+
+4. **Unreadability**: Is there a moment where the protagonist (and
+   the reader) cannot fully parse them? A gesture, statement, or
+   choice that remains opaque?
+
+If all four answers are no, the character is a function, not a person.
+Revise until at least two are yes.
+
 ---
 
 ## 3. WORLDBUILDING
@@ -256,14 +305,9 @@ Rules:
 TELLING = using an abstract label where concrete evidence would work.
 SHOWING = conveying through action, sensory detail, dialogue, specifics.
 
-Detectable telling patterns (regex-able):
-  - "[Character] felt [emotion]" / "was [emotion]" / "seemed [emotion]"
-  - Direct emotion words as exposition: angry, sad, happy, scared,
-    nervous, excited, jealous, guilty, anxious, lonely, desperate
-  - Emotion adverbs: angrily, sadly, happily, nervously
-  - Trait declarations: "[Character] was [trait]" -- brave, kind, smart
-  - Relationship declarations: "They were best friends."
-  - Atmosphere labels: "It was a creepy house."
+The specific detectable patterns (emotion labels, trait declarations,
+atmosphere labels, fiction-specific AI tells) are consolidated in
+§6 under "Fiction-Specific AI Tells." See also ANTI-SLOP.md.
 
 When telling is OK:
   - Time transitions: "Three weeks later"
@@ -302,6 +346,30 @@ Write description WITHOUT adjectives or adverbs. Forces strong nouns
 and verbs. This is exactly what AI fails at: AI leans on adjective-noun
 clichés ("ancient wisdom," "piercing gaze," "heavy silence") instead
 of specific verbs and nouns.
+
+### Prose-Craft Exercises
+
+Diagnostic exercises for specific AI writing problems. Use during
+revision to test whether scenes are grounded.
+
+**The flat passage exercise**: Take the most analytical paragraph in
+a chapter. Rewrite it using only concrete nouns and physical verbs.
+No abstractions, no qualifications, no recontextualizations. If the
+scene collapses without its intellectual scaffolding, it isn't
+grounded enough. The image should carry the weight.
+
+**The two-sentence version**: Take any scene and compress it to two
+sentences. If those two sentences don't carry emotional weight, the
+scene isn't doing enough work -- it's operating on explanation rather
+than experience.
+
+**The stranger test**: Write a 200-word scene with a character who
+appears exactly once, exists outside the story's conceptual framework,
+and does something the narrator can't interpret. A security guard
+asleep standing up. A woman arguing on her phone in a language you
+don't recognize. A man reading a physical newspaper at a hot dog cart.
+If the story can't accommodate a moment of pure, unthematized
+observation, it has become a thesis rather than a world.
 
 ### Fiction-Specific AI Tells (beyond the general anti-slop list)
 Kill these on sight in prose:
@@ -344,6 +412,31 @@ COUNTERMEASURES (actively enforce these):
     relief, boredom, wonder, horror. Not a flat line.
   - If a choice has no real cost, it's not a real choice.
 
+CONCRETE PROTOCOLS (these have teeth):
+
+**Register break requirement**: Any work over 10,000 words must
+contain at least one passage where the dominant prose register
+breaks. If the default is baroque/analytical, write a passage in
+flat declarative sentences -- physical detail only, no digressions,
+no qualifications. If the default is spare, write a passage that
+opens up. The break should coincide with an emotional crisis. The
+change in style IS the emotion.
+
+**The unforced decision**: The protagonist must make at least one
+genuine choice that is not produced by circumstance, duress, or
+external pressure. Not "the migraine prevented him from going."
+Not "he woke up knowing he couldn't do it." An active, conscious
+decision to act, made when doing nothing was also possible.
+Passive protagonists can be thematically appropriate but are
+dramatically inert without at least one moment of agency.
+
+**The scene that breaks the rules**: Every story must contain at
+least one scene the preceding material makes impossible. A moment
+where a character acts against their established pattern. Where the
+voice fails and something unprocessed comes through. Where the
+thesis encounters a fact it can't absorb. This is what separates
+controlled execution from genuine fiction.
+
 ---
 
 ## 8. EVALUATION RUBRICS (summary)
@@ -384,3 +477,86 @@ COUNTERMEASURES (actively enforce these):
   - Fiction-specific AI tells (banned phrases)
   - Specificity: concrete nouns > generic nouns
   - No stability trap: genuine change, cost, darkness present
+
+---
+
+## 9. LITERARY / CONTEMPORARY FICTION
+
+The preceding sections are weighted toward genre fiction (fantasy in
+particular). Literary and contemporary fiction share many craft
+principles but differ in structure, worldbuilding, and evaluation.
+
+### Milieu as Constraint System
+
+In literary fiction, a specific real-world setting functions as the
+constraint system that magic systems provide in fantasy. The art
+world, academia, a hospital, a restaurant kitchen, a law firm --
+each has rules, hierarchies, costs, and limitations that shape
+character behavior the way hard magic shapes a fantasy protagonist's
+options.
+
+Build the milieu the way you'd build a magic system:
+  - RULES: What are the unwritten laws? (In the art world: rough
+    drafts imply process, process implies labor, labor justifies cost.)
+  - COSTS: What does participation extract? (Time, identity,
+    compromise, money.)
+  - LIMITATIONS: What can't you do within the system? What happens
+    if you try?
+  - SOCIETAL IMPLICATIONS: How does the system shape the people
+    inside it? What does it reward? What does it punish?
+
+### The Dangerous Insight Test
+
+For fiction set in a specific professional milieu, audit every
+observation the narrator or characters make about their world.
+For each, ask: would a thoughtful insider say "yes, that's
+accurate"? If yes for ALL of them, the commentary is safe -- it's
+insider knowingness, not insight.
+
+The story needs at least one observation an insider would find
+genuinely uncomfortable. A truth the professional community knows
+but doesn't articulate because articulating it would threaten the
+system's self-justification.
+
+"The art market is obscene but artists participate in it" = safe.
+"The art world is not a market for art -- it's a market for the
+belief that art matters, and the belief is the product, and the
+art is the packaging, and everyone knows this" = dangerous.
+
+### Plotless and Recursive Structures
+
+Not all literary fiction follows beat sheets. Alternative structural
+models:
+
+**The question structure**: The story asks a question in the opening
+and the entire text is the process of not-quite-answering it. The
+ending reframes the question rather than resolving it.
+
+**The accretion structure**: Meaning builds through accumulated
+detail rather than through escalating plot events. Each scene adds
+a layer. The "climax" is the moment when the accumulated layers
+produce a recognition the reader couldn't have reached from any
+single scene.
+
+**The recursive structure**: The story returns to the same scene,
+image, or phrase multiple times, and each return changes the meaning.
+The ending mirrors the opening but the reader's understanding has
+been transformed.
+
+CHECKABLE: Identify the structural model. If it's not beat-sheet,
+name what it IS. If you can't name it, the story may lack structure
+rather than transcending structure.
+
+### Literary Fiction Evaluation
+
+Replace or supplement genre rubrics with:
+  - Emotional temperature variation: does the register shift?
+  - Character opacity: do supporting characters resist the thesis?
+  - Passivity audit: does the protagonist make an unforced decision?
+  - Surprise audit: does the story contain a consequence its own
+    framework can't absorb?
+  - Domain insight: safe knowingness or genuinely dangerous?
+  - Register variation: does the prose have more than one mode?
+  - Dramatization: are the most consequential beats scenes or summaries?
+  - Thesis-resistance: does the story contain details that don't
+    connect to its argument?

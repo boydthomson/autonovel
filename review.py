@@ -19,6 +19,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
+from utils import extract_text_from_response, get_max_tokens_with_thinking
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env", override=True)
@@ -38,6 +39,7 @@ REVIEW_PROMPT = """Read the below novel, "{title}". Review it first as a literar
 
 def call_opus(prompt, max_tokens=8000):
     """Call Opus with the full manuscript."""
+    max_tokens = get_max_tokens_with_thinking(max_tokens)
     import httpx
     headers = {
         "x-api-key": API_KEY,
@@ -57,7 +59,7 @@ def call_opus(prompt, max_tokens=8000):
         headers=headers, json=payload, timeout=600,
     )
     resp.raise_for_status()
-    return resp.json()["content"][0]["text"]
+    return extract_text_from_response(resp.json())
 
 
 def get_title():
