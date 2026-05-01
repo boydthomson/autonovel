@@ -94,4 +94,5 @@ RULES:
 
 print("Calling writer model...", file=sys.stderr)
 result = call_writer(prompt)
+(BASE_DIR / "canon.md").write_text(result)
 print(result)

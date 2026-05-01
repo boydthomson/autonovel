@@ -125,4 +125,5 @@ IMPORTANT:
 
 print("Calling writer model...", file=sys.stderr)
 result = call_writer(prompt)
+(BASE_DIR / "world.md").write_text(result)
 print(result)

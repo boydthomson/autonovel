@@ -133,4 +133,6 @@ CONSTRAINTS:
 
 print("Calling writer model...", file=sys.stderr)
 result = call_writer(prompt)
+(BASE_DIR / "outline.md").write_text(result)
+Path("/tmp/outline_output.md").write_text(result)
 print(result)

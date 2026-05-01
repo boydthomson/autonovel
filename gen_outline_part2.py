@@ -37,7 +37,7 @@ def call_writer(prompt, max_tokens=16000):
     resp.raise_for_status()
     return extract_text_from_response(resp.json())
 
-part1 =open('/tmp/outline_output.md').read()
+part1 = (BASE_DIR / "outline.md").read_text()
 mystery = (BASE_DIR / "MYSTERY.md").read_text()
 
 prompt = f"""Here are the first 17 chapters of a 24-chapter outline for "The Second Son of the House of Bells."
@@ -81,4 +81,6 @@ REMEMBER:
 
 print("Calling writer model...", file=sys.stderr)
 result = call_writer(prompt)
+existing = (BASE_DIR / "outline.md").read_text()
+(BASE_DIR / "outline.md").write_text(existing + "\n\n" + result)
 print(result)
