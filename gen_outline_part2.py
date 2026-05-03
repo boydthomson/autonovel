@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
-"""Generate remaining chapters + foreshadowing ledger."""
+"""
+Complete an in-progress outline.md.
+
+Reads whatever gen_outline.py produced, detects where it stopped,
+and asks the writer model to finish remaining chapters plus the
+Foreshadowing Ledger — with no story-specific assumptions.
+"""
 import os
+import re
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
@@ -12,6 +19,7 @@ load_dotenv(BASE_DIR / ".env")
 WRITER_MODEL = os.environ.get("AUTONOVEL_WRITER_MODEL", "claude-sonnet-4-6")
 API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 API_BASE = os.environ.get("AUTONOVEL_API_BASE_URL", "https://api.anthropic.com")
+
 
 def call_writer(prompt, max_tokens=16000):
     max_tokens = get_max_tokens_with_thinking(max_tokens)
@@ -26,9 +34,10 @@ def call_writer(prompt, max_tokens=16000):
         "max_tokens": max_tokens,
         "temperature": 0.5,
         "system": (
-            "You are a novel architect continuing an outline. Write in the same format "
-            "as the preceding chapters. Every chapter needs: POV, Location, Save the Cat beat, "
-            "% mark, Emotional arc, Try-fail cycle, Beats, Plants, Payoffs, Character movement, "
+            "You are a novel architect completing an in-progress chapter outline. "
+            "Continue in exactly the same format as the existing chapters. "
+            "Every chapter needs: POV, Location, Save the Cat beat, % mark, "
+            "Emotional arc, Try-fail cycle, Beats, Plants, Payoffs, Character movement, "
             "The lie, Word count target."
         ),
         "messages": [{"role": "user", "content": prompt}],
@@ -37,50 +46,84 @@ def call_writer(prompt, max_tokens=16000):
     resp.raise_for_status()
     return extract_text_from_response(resp.json())
 
-part1 = (BASE_DIR / "outline.md").read_text()
-mystery = (BASE_DIR / "MYSTERY.md").read_text()
 
-prompt = f"""Here are the first 17 chapters of a 24-chapter outline for "The Second Son of the House of Bells."
-The outline was cut off mid-chapter-17. Continue from where it left off, then complete chapters 18-24,
-then write the Foreshadowing Ledger.
+def detect_outline_state(text: str) -> dict:
+    """Return info about what's already in the outline."""
+    chapter_headers = re.findall(r"^###\s+Ch\s+(\d+)\s*:", text, re.MULTILINE | re.IGNORECASE)
+    chapter_numbers = [int(n) for n in chapter_headers]
+    has_ledger = bool(re.search(r"foreshadowing\s+ledger", text, re.IGNORECASE))
+    # Detect target chapter count from Act Structure if present
+    target_match = re.search(r"(\d+)[\s-]+chapter", text, re.IGNORECASE)
+    target = int(target_match.group(1)) if target_match else 24
+    target = max(target, 22)
+    return {
+        "chapters_found": sorted(set(chapter_numbers)),
+        "last_chapter": max(chapter_numbers) if chapter_numbers else 0,
+        "has_ledger": has_ledger,
+        "target_chapters": target,
+    }
+
+
+outline_path = BASE_DIR / "outline.md"
+existing = outline_path.read_text()
+state = detect_outline_state(existing)
+
+last = state["last_chapter"]
+target = state["target_chapters"]
+has_ledger = state["has_ledger"]
+
+if last >= target and has_ledger:
+    print("Outline already complete — nothing to do.", file=sys.stderr)
+    sys.exit(0)
+
+needs = []
+if last < target:
+    needs.append(
+        f"Complete chapters {last + 1} through {target} in the same format as the existing chapters."
+    )
+if not has_ledger:
+    needs.append(
+        "Add a Foreshadowing Ledger at the end:\n\n"
+        "## Foreshadowing Ledger\n\n"
+        "| # | Thread | Planted (Ch) | Reinforced (Ch) | Payoff (Ch) | Type |\n"
+        "|---|--------|-------------|-----------------|-------------|------|\n\n"
+        "Include at least 15 threads. Types: object, dialogue, action, symbolic, structural. "
+        "Plant-to-payoff distance must be at least 3 chapters."
+    )
+
+tasks = "\n\n".join(needs)
+
+# Read companion files for story context
+mystery_text = (BASE_DIR / "MYSTERY.md").read_text()
+characters_text = (BASE_DIR / "characters.md").read_text()
+
+prompt = f"""Here is an in-progress novel outline. {
+    f"It currently covers chapters 1–{last} of a planned {target}-chapter novel." if last > 0
+    else "It appears to be empty or very early."
+}
+
+YOUR TASKS:
+{tasks}
+
+CONSTRAINTS:
+- Match the format of existing chapters exactly
+- Vary Try-fail types: aim for 60%+ yes-but or no-and
+- At least one quiet chapter in the back half (character-focused, low action)
+- The lie established early must be fully shattered by the climax
+- Stability Trap: not everything resolves cleanly
+- Final Image should mirror the Opening Image but show transformation
 
 THE OUTLINE SO FAR:
-{part1}
+{existing}
 
-THE CENTRAL MYSTERY (for reference):
-{mystery}
+CHARACTER REFERENCE (for consistency):
+{characters_text}
 
-REMAINING STRUCTURE NEEDED:
-
-Ch 17 (complete it): Maret confrontation -- she reveals the truth about the void
-Ch 18: Dark Night of the Soul -- Cass processes what he's learned
-Ch 19: Break Into Three -- new information or perspective changes everything  
-Ch 20-21: Gathering forces, making a plan
-Ch 22: The climax at the Bell Tower -- Cass answers the question
-Ch 23: Aftermath and resolution
-Ch 24: Final Image (mirror of Opening Image)
-
-Then write:
-
-## Foreshadowing Ledger
-
-| # | Thread | Planted (Ch) | Reinforced (Ch) | Payoff (Ch) | Type |
-|---|--------|-------------|-----------------|-------------|------|
-
-Include at LEAST 15 threads. Types: object, dialogue, action, symbolic, structural.
-Plant-to-payoff distance must be at least 3 chapters.
-
-REMEMBER:
-- The climax uses the fourth option: Cass amplifies the question into audible range
-  so the city can hear and answer for themselves
-- This doesn't free Perin directly (Stability Trap -- not everything resolves cleanly)
-- Cass's lie must be fully shattered by the climax
-- Final Image should mirror Ch 1's Opening Image but show transformation
-- At least one quiet chapter in the back half
+THE CENTRAL MYSTERY (author's eyes only):
+{mystery_text}
 """
 
-print("Calling writer model...", file=sys.stderr)
+print(f"Outline has {last}/{target} chapters, ledger={'yes' if has_ledger else 'no'}. Completing...", file=sys.stderr)
 result = call_writer(prompt)
-existing = (BASE_DIR / "outline.md").read_text()
-(BASE_DIR / "outline.md").write_text(existing + "\n\n" + result)
+outline_path.write_text(existing.rstrip() + "\n\n" + result)
 print(result)
