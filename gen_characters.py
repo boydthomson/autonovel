@@ -50,7 +50,7 @@ voice_lines = voice.split('\n')
 part2_start = next(i for i, l in enumerate(voice_lines) if 'Part 2' in l)
 voice_part2 = '\n'.join(voice_lines[part2_start:])
 
-prompt = f"""Build a complete character registry for this fantasy novel. This is CHARACTERS.MD --
+prompt = f"""Build a complete character registry for this novel. This is CHARACTERS.MD --
 the definitive reference for WHO exists in this story, what drives them, how they speak,
 and what secrets they carry.
 
@@ -85,9 +85,10 @@ Rules: Want and Need must be IN TENSION. Lie statable in one sentence.
 7. Metaphor domain  8. Directness vs indirectness
 Test: Remove dialogue tags. Can you tell who's speaking?
 
-BUILD THE REGISTRY WITH AT LEAST THESE CHARACTERS:
+BUILD THE REGISTRY FROM THE SEED CONCEPT. Derive all characters from the story this
+seed demands. At minimum include:
 
-1. **Cass Bellwright** (protagonist, POV character)
+1. **The protagonist** (POV character, if applicable)
    - Full wound/want/need/lie chain
    - Three sliders with justification
    - Arc type (positive/negative/flat)
@@ -96,32 +97,16 @@ BUILD THE REGISTRY WITH AT LEAST THESE CHARACTERS:
    - At least 2 secrets
    - Key relationships mapped
 
-2. **Eddan Bellwright** (father)
-   - Same depth as Cass
-   - His relationship to the sealed journals, the shaking hands
-   - What he knows and what he's hiding
+2. **The antagonist or primary opposing force**
+   - Not a villain -- someone whose interests conflict with the protagonist's
+   - Their own wound/want/need/lie (they should be understandable)
+   - What they believe they're protecting or achieving
 
-3. **Perin Bellwright** (brother) 
-   - Even though he's absent for much of the story, he needs full depth
-   - What actually happened with the Corda contract
-   - His presence through absence
+3. **2-3 supporting characters** who serve distinct thematic roles
+   - Each should represent a different answer to the story's central question
+   - Each should have their own agenda, not just serve the protagonist
 
-4. **Maret Corda** (antagonist)
-   - Not a villain -- someone whose interests conflicts with Cass's
-   - Her own wound/want/need/lie (she should be understandable)
-
-5. **Rector Suvaine** (Academy Chancellor)
-   - The institutional antagonist -- the system personified
-   - She believes she's protecting Cantamura
-
-6. **Torvald Hess** (Compact leader)
-   - The outsider perspective on the system
-   - What he represents thematically
-
-7. **At least 1-2 additional characters** that the story needs
-   - A peer/friend for Cass at the Academy?
-   - Someone at the House of Corda who knows Perin?
-   - A Court Singer with divided loyalties?
+4. **1-2 additional characters** the story specifically needs
 
 FOR EACH CHARACTER INCLUDE:
 - Name, age, role
@@ -139,9 +124,8 @@ IMPORTANT:
 - Characters must INTERCONNECT. Their wants should conflict with each other.
 - Every secret should be something that would CHANGE the story if revealed.
 - Speech patterns must be distinct enough to pass the no-tags test.
-- Give Cass habits that come from his gift (the pain, the constant listening).
-- The father's shaking hands should connect to something specific.
-- Maret Corda should be as fully realized as Cass -- a worthy antagonist.
+- Give the protagonist habits that arise from their specific wound or gift.
+- The antagonist should be as fully realized as the protagonist -- a worthy foil.
 - Target ~3000-4000 words. Dense character work, not padding.
 """
 

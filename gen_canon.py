@@ -66,9 +66,9 @@ FORMAT THE OUTPUT AS CANON.MD with these categories:
 ## Timeline
 - Dated events, ages, durations
 
-## Magic System Rules
-- Hard rules of Tonal Law (intervals, costs, limitations)
-- Cass's gift specifics
+## Power / Magic System Rules (if applicable)
+- Hard rules, costs, limitations
+- Protagonist's specific abilities or relationship to the system
 
 ## Character Facts
 - Ages, physical descriptions, habits, relationships
@@ -82,7 +82,7 @@ FORMAT THE OUTPUT AS CANON.MD with these categories:
 
 ## Established In-Story
 - Events that have already happened in the story's past
-- The Perin contract, the Expansion Wars, etc.
+- Key contracts, conflicts, formative events referenced in the narrative
 
 RULES:
 - One fact per bullet point. Short. Specific. Checkable.

@@ -29,7 +29,7 @@ def call_writer(prompt, max_tokens=16000):
         "max_tokens": max_tokens,
         "temperature": 0.7,
         "system": (
-            "You are a fantasy worldbuilder with deep knowledge of Sanderson's Laws, "
+            "You are a worldbuilder with deep knowledge of Sanderson's Laws, "
             "Le Guin's prose philosophy, and TTRPG-quality lore design. "
             "You write world bibles that are specific, interconnected, and imply depth "
             "beyond what's stated. You never use AI slop words (delve, tapestry, myriad, etc). "
@@ -51,8 +51,8 @@ voice_lines = voice.split('\n')
 part2_start = next(i for i, l in enumerate(voice_lines) if 'Part 2' in l)
 voice_part2 = '\n'.join(voice_lines[part2_start:])
 
-prompt = f"""Build a complete world bible for this fantasy novel. This is the WORLD.MD file -- 
-the definitive reference for everything that EXISTS in this world. A writer should be able 
+prompt = f"""Build a complete world bible for this novel. This is the WORLD.MD file --
+the definitive reference for everything that EXISTS in this world. A writer should be able
 to resolve any worldbuilding question from this document alone.
 
 SEED CONCEPT:
@@ -61,65 +61,49 @@ SEED CONCEPT:
 VOICE IDENTITY (the tone and register of this novel):
 {voice_part2}
 
-CRAFT REQUIREMENTS (from CRAFT.md -- follow these):
-- Magic system needs HARD RULES with COSTS and LIMITATIONS per Sanderson's Second Law
-- Limitations >= powers in narrative prominence
-- Trace implications of magic through society, economy, law, religion
-- At least 2-3 societal implications of magic explored in depth
+WORLDBUILDING REQUIREMENTS:
 - History must create PRESENT-DAY TENSIONS that drive the plot (not just backdrop)
-- Geography must be specific and sensory (not generic fantasy)
+- Geography/setting must be specific and sensory (not generic)
+- If the story has a power or rule system: include HARD RULES with COSTS and LIMITATIONS.
+  Limitations must be at least as prominent as powers. Trace implications through society,
+  economy, law, religion.
 - Iceberg principle: imply more than you state
 - Interconnection: pulling one thread should move everything
+- Every rule should have a COST or LIMITATION alongside it
 
-STRUCTURE THE DOCUMENT WITH THESE SECTIONS:
+DETERMINE THE RIGHT SECTIONS for this story's needs. At minimum include:
 
-## Cosmology & History
-A timeline of major events. Focus on events that create PRESENT-DAY tensions.
-Include the founding myth, key turning points, and recent events that matter to the plot.
+## Setting & Geography
+The specific locations this story requires. Physical layout. Sensory signatures for each.
+Neighboring places. How geography shapes daily life and conflict.
 
-## Magic System
-### Hard Rules (Tonal Law)
-Specific, testable rules. What intervals do what. What progressions bind.
-What happens when you break the rules. Include COSTS and LIMITATIONS prominently.
+## History & Timeline
+Major events. Focus on events that create PRESENT-DAY tensions.
+Include founding conditions, key turning points, recent events that matter to the plot.
 
-### Soft Magic (Cass's Gift)
-What he perceives, how it works, what it costs HIM specifically.
-This should be mysterious but have consistent internal logic.
+## Power Systems (if applicable)
+Hard rules, costs, limitations. Societal implications. What happens when you break them.
 
-### Societal Implications
-How does tonal law shape: governance, commerce, education, class structure,
-crime, family life, childhood, aging, disability?
-
-## Geography
-Cantamura's physical layout, districts, the natural amphitheater's acoustic properties.
-Neighboring places (at least 2-3). Sensory signatures for each location.
-
-## Factions & Politics
+## Factions & Power Structure
 Who holds power, who wants it, who's being crushed by it.
-At least 3-4 factions with opposing interests.
-
-## Bestiary / Flora / Natural World
-What's unique about the natural world in and around Cantamura?
+At least 3-4 factions or interest groups with opposing stakes.
 
 ## Cultural Details
-Customs, taboos, festivals, food, clothing, coming-of-age rituals.
-Things that make daily life feel SPECIFIC.
+Customs, taboos, festivals, food, clothing, daily rituals.
+Things that make life feel SPECIFIC and LIVED-IN.
 
 ## Internal Consistency Rules
-Hard constraints a writer must not violate. The physics of sound in this world.
-What's possible and what's not.
+Hard constraints a writer must not violate. What's possible and what's not.
 
 IMPORTANT:
-- Be SPECIFIC. Not "the city has districts" but name them, describe them, 
-  give them sensory signatures.
+- Be SPECIFIC. Name places, describe them, give them sensory signatures.
 - Every rule should have a COST or LIMITATION stated alongside it.
-- Include 2-3 facts per section that are unexplained, hinting at deeper systems 
-  (iceberg depth).
-- Facts should INTERCONNECT: the magic should shape the politics, the geography 
-  should shape the culture, the history should explain current faction conflicts.
+- Include 2-3 facts per section that are unexplained, hinting at deeper systems.
+- Facts should INTERCONNECT: the power structure shapes daily life, the geography
+  shapes the culture, the history explains current faction conflicts.
 - Write in clean, direct prose. No AI slop. No "rich tapestry." No "delving."
-- The world should feel grounded and LIVED-IN, not imagined. Think: what does 
-  breakfast smell like? What do children play? How do old people complain?
+- The world should feel grounded and LIVED-IN. Think: what does breakfast smell like?
+  What do children play? How do old people complain?
 - Target ~3000-4000 words. Dense, not padded.
 """
 

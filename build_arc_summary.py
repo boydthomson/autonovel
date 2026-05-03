@@ -8,7 +8,7 @@ import os
 import re
 from pathlib import Path
 from dotenv import load_dotenv
-from utils import extract_text_from_response, get_max_tokens_with_thinking
+from utils import extract_text_from_response, get_max_tokens_with_thinking, get_novel_title
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env")
@@ -85,21 +85,13 @@ def main():
     total_wc = sum(len((CHAPTERS_DIR / f"ch_{c:02d}.md").read_text().split()) for c in range(1, 20))
     
     # Assemble
-    full = f"""# THE SECOND SON OF THE HOUSE OF BELLS
+    novel_title = get_novel_title(BASE_DIR)
+    ch_count = len([s for s in summaries if s])
+    full = f"""# {novel_title.upper()}
 ## Full-Arc Summary for Reader Panel
 
 This document contains chapter summaries, opening/closing passages,
-and key dialogue for all 23 chapters. Total novel: {total_wc:,} words.
-
-PREMISE: In Cantamura, a city where law is sung into binding through
-specific musical intervals, 14-year-old Cass Bellwright can hear when
-someone is lying -- a quarter-tone between F and F-sharp that causes
-him physical pain. His older brother Perin has been bound to service
-in the House of Corda for 10 years through a contract their father
-allowed. The bells their family maintains contain a secret: a question
-("Do you consent to be bound?") embedded in the sub-harmonics by the
-city's founder 200 years ago. No one has ever heard it. No one has
-ever answered. Every binding in Cantamura is technically void.
+and key dialogue for all {ch_count} chapters. Total novel: {total_wc:,} words.
 
 ---
 

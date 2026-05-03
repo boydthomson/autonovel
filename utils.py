@@ -68,6 +68,33 @@ def get_thinking_budget(max_tokens):
     return {}
 
 
+def get_novel_title(base_dir=None):
+    """
+    Extract the novel title from outline.md.
+
+    Looks for the first markdown heading that isn't a structural section
+    (i.e., not "Act Structure", "Chapter", "Foreshadowing", etc.).
+    Falls back to "the novel" if nothing usable is found.
+    """
+    import re
+    if base_dir is None:
+        base_dir = BASE_DIR
+    outline_path = Path(base_dir) / "outline.md"
+    if not outline_path.exists():
+        return "the novel"
+    text = outline_path.read_text()
+    skip = re.compile(
+        r"act\s+structure|chapter|foreshadowing|outline|part\s+\d",
+        re.IGNORECASE,
+    )
+    for line in text.splitlines():
+        if line.startswith("#"):
+            title = line.lstrip("#").strip()
+            if title and not skip.search(title):
+                return title
+    return "the novel"
+
+
 def get_max_tokens_with_thinking(base_max_tokens):
     """
     Return an appropriate max_tokens value that accounts for thinking overhead.

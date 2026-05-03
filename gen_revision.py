@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
-from utils import extract_text_from_response, get_max_tokens_with_thinking
+from utils import extract_text_from_response, get_max_tokens_with_thinking, get_novel_title
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env")
@@ -60,7 +60,8 @@ def main():
     old_path = BASE_DIR / "chapters" / f"ch_{ch_num:02d}.md"
     old_text = old_path.read_text() if old_path.exists() else "(no existing draft)"
     
-    prompt = f"""Rewrite Chapter {ch_num} of "The Second Son of the House of Bells."
+    novel_title = get_novel_title(BASE_DIR)
+    prompt = f"""Rewrite Chapter {ch_num} of "{novel_title}."
 
 REVISION BRIEF (follow this exactly):
 {brief}
